@@ -70,10 +70,13 @@ class WorkspaceBlock(BaseModel):
         title (str): Friendly title for this workspace.
         resource (str): The human counterpart URL.
         agent_resource (str): The agent-page counterpart URL (ending in /agents).
+        breadcrumb (List[str]): List of labels representing the path hierarchy.
     """
     title: str
     resource: str                    # The human URL
     agent_resource: str              # The /agents URL
+    breadcrumb: List[str] = Field(default_factory=list)
+
 
 class IdentityBlock(BaseModel):
     """Security credentials and role context for the current request.
@@ -99,6 +102,20 @@ class MetaBlock(BaseModel):
     per_page: Optional[int] = None
     filters: dict = Field(default_factory=dict)
 
+class ResourceMapEntry(BaseModel):
+    """Structured directory entry representing a top-level resource collection at root.
+
+    Attributes:
+        name (str): The collection name.
+        description (str): Explanatory documentation of the resource.
+        agent_endpoint (str): The /agents path of the resource workspace.
+        action_count (int): The total count of supported actions/endpoints under the prefix.
+    """
+    name: str
+    description: str
+    agent_endpoint: str
+    action_count: int
+
 class AgentWorkspace(BaseModel):     # The top-level output (formerly AgentPage)
     """The complete agent-page structure representing the active Agent Workspace.
 
@@ -114,6 +131,7 @@ class AgentWorkspace(BaseModel):     # The top-level output (formerly AgentPage)
         guidance (List[str]): Procedural hints or context guidelines.
         feedback (dict): Return results from the previous execution.
         meta (MetaBlock, optional): Search/pagination metadata.
+        resources (List[ResourceMapEntry]): The top-level directory resource map (populated at root).
     """
     agentML: str = "0.1"
     workspace: WorkspaceBlock        # formerly page
@@ -126,4 +144,6 @@ class AgentWorkspace(BaseModel):     # The top-level output (formerly AgentPage)
     guidance: List[str] = Field(default_factory=list)         # Step-by-step hints for complex workflows
     feedback: dict = Field(default_factory=dict)              # Result of last action (for stateful sessions)
     meta: Optional[MetaBlock] = None
+    resources: List[ResourceMapEntry] = Field(default_factory=list)
+
 

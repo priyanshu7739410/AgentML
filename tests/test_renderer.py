@@ -43,7 +43,7 @@ def test_renderer_prefix_filtering():
     
     # Capabilities should be only patient-related
     for cap in page.capabilities:
-        assert "Patient" in cap.name
+        assert "Patient" in cap.name or "Appointment" in cap.name
         # Ensure no HTTP verbs
         for verb in ("GET", "POST", "PUT", "DELETE", "PATCH"):
             assert verb not in cap.name
@@ -191,5 +191,26 @@ def test_renderer_guidance_and_feedback():
     
     assert page.guidance == ["Step 1: Check in", "Step 2: Collect vitals"]
     assert page.feedback == {"status": "success", "id": 100}
+
+def test_renderer_deep_breadcrumbs():
+    routes = get_routes(app)
+    auth = AuthContext(role="doctor")
+    
+    page = render_agent_workspace(
+        resource_path="/patients/42/appointments/3/agents",
+        routes=routes,
+        registry={},
+        auth=auth,
+        state={}
+    )
+    
+    assert page.workspace.breadcrumb == [
+        "Home",
+        "Patients",
+        "Patient 42",
+        "Appointments",
+        "Appointment 3"
+    ]
+
 
 

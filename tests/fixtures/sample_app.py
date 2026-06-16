@@ -288,3 +288,9 @@ async def delete_patient(id: int):
 async def generate_billing(data: BillingGenerate):
     """Generate invoice for a patient."""
     return {"invoice_id": 123}
+
+@app.get("/patients/{id}/appointments")
+@agent.expose(action="ListPatientAppointments", description="Retrieve scheduled appointments for a patient")
+async def list_patient_appointments(id: int):
+    return [{"appointment_id": 101, "patient_id": id}]
+

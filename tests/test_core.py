@@ -87,4 +87,35 @@ def test_last_action_feedback_header():
         data2 = response2.json()
         assert data2["feedback"] == {"result": "raw_feedback_string"}
 
+def test_v03_relational_navigation_and_breadcrumbs():
+    with TestClient(app) as client:
+        # Test root resource map
+        response = client.get("/agents")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # capabilities should be empty, and resources should contain the map
+        assert len(data["capabilities"]) == 0
+        assert len(data["resources"]) > 0
+        
+        res_map = {r["name"]: r for r in data["resources"]}
+        assert "Patients" in res_map
+        assert res_map["Patients"]["agent_endpoint"] == "/patients/agents"
+        # Total endpoints under /patients (list_patients, create_patient, get_patient, update_patient, delete_patient, list_patient_appointments)
+        assert res_map["Patients"]["action_count"] == 6
+
+        # Test breadcrumbs and instance-scoped navigation
+        response2 = client.get("/patients/42/agents")
+        assert response2.status_code == 200
+        data2 = response2.json()
+        
+        # Breadcrumbs
+        assert data2["workspace"]["breadcrumb"] == ["Home", "Patients", "Patient 42"]
+        
+        # Instance-scoped navigation
+        nav_endpoints = {n["label"]: n["agent_endpoint"] for n in data2["navigation"]}
+        assert "Appointments" in nav_endpoints
+        assert nav_endpoints["Appointments"] == "/patients/42/appointments/agents"
+
+
 

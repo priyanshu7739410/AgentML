@@ -9,6 +9,7 @@ from agentML.schema import (
     UnavailableCapability,
     Alert,
     MetaBlock,
+    ResourceMapEntry,
 )
 from agentML.auth import AuthContext
 from agentML.introspector import RouteInfo, extract_fields
@@ -54,6 +55,21 @@ def render_agent_workspace(
     # Determine prefix
     human_segments = [s for s in human_path.split("/") if s]
     
+    # Build breadcrumbs
+    breadcrumb = ["Home"]
+    for idx, seg in enumerate(human_segments):
+        if idx % 2 == 0:
+            breadcrumb.append(seg.capitalize())
+        else:
+            parent = human_segments[idx - 1]
+            from agentML.inference import _should_singularize
+            parent_cap = parent.capitalize()
+            if parent_cap.endswith("s") and not parent_cap.endswith("ss") and _should_singularize(parent_cap):
+                parent_singular = parent_cap[:-1]
+            else:
+                parent_singular = parent_cap
+            breadcrumb.append(f"{parent_singular} {seg}")
+
     # Filter routes related to the current resource path prefix
     filtered_routes = []
     if not human_segments:
@@ -176,6 +192,28 @@ def render_agent_workspace(
 
     # Build navigation links
     navigation = []
+
+    # 1. Instance-scoped nested links
+    if len(human_segments) >= 2:
+        prefix = human_segments[0]
+        instance_id = human_segments[1]
+        for r in routes:
+            r_seg = [s for s in r.path.split("/") if s]
+            if len(r_seg) > 2 and r_seg[0] == prefix and r_seg[1].startswith("{") and r_seg[1].endswith("}"):
+                sub_seg = [instance_id if (s.startswith("{") and s.endswith("}")) else s for s in r_seg]
+                nested_human_path = "/" + "/".join(sub_seg)
+                nested_agent_endpoint = nested_human_path + "/agents"
+                label = r_seg[2].capitalize()
+                
+                if not any(n.agent_endpoint == nested_agent_endpoint for n in navigation):
+                    navigation.append(
+                        NavigationLink(
+                            label=label,
+                            agent_endpoint=nested_agent_endpoint
+                        )
+                    )
+
+    # 2. Sibling/Global navigation links
     all_prefixes = set()
     for r in routes:
         r_segments = [s for s in r.path.split("/") if s]
@@ -229,12 +267,50 @@ def render_agent_workspace(
                         if step not in guidance:
                             guidance.append(step)
 
+    # Build root resource map if root /agents
+    resources = []
+    if not human_segments:
+        prefix_groups = {}
+        for r in routes:
+            r_segments = [s for s in r.path.split("/") if s]
+            if r_segments:
+                prefix = r_segments[0]
+                if prefix not in prefix_groups:
+                    prefix_groups[prefix] = []
+                prefix_groups[prefix].append(r)
+        
+        for p in sorted(prefix_groups.keys()):
+            desc = f"{p.capitalize()} directory"
+            first_exposed_desc = None
+            action_count = 0
+            for r in prefix_groups[p]:
+                meta = registry.get(r.handler_name)
+                if meta and meta.description and not first_exposed_desc:
+                    first_exposed_desc = meta.description
+                for method in r.methods:
+                    if method.upper() in ("POST", "GET", "PUT", "DELETE", "PATCH"):
+                        action_count += 1
+            
+            if first_exposed_desc:
+                desc = first_exposed_desc
+                
+            resources.append(
+                ResourceMapEntry(
+                    name=p.capitalize(),
+                    description=desc,
+                    agent_endpoint=f"/{p}/agents",
+                    action_count=action_count
+                )
+            )
+        capabilities = []
+
     return AgentWorkspace(
         agentML="0.1",
         workspace=WorkspaceBlock(
             title=title,
             resource=human_path,
             agent_resource=agent_resource,
+            breadcrumb=breadcrumb,
         ),
         identity=IdentityBlock(
             role=auth.role,
@@ -248,5 +324,6 @@ def render_agent_workspace(
         guidance=guidance,
         feedback=feedback or {},
         meta=meta_block,
+        resources=resources,
     )
 
