@@ -181,7 +181,7 @@ class AgentMLMiddleware:
         if workspace_data:
             # Add capabilities
             for cap in workspace_data.get("capabilities", []):
-                key = (cap["name"], agent_resource)
+                key = cap["name"]
                 if key not in seen:
                     seen.add(key)
                     transitions.append({

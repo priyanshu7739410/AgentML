@@ -117,5 +117,24 @@ def test_v03_relational_navigation_and_breadcrumbs():
         assert "Appointments" in nav_endpoints
         assert nav_endpoints["Appointments"] == "/patients/42/appointments/agents"
 
+def test_custom_lifespan_preserved():
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI
+    from agentML import AgentML
+
+    @asynccontextmanager
+    async def my_lifespan(app):
+        app.state.custom_started = True
+        yield
+        app.state.custom_started = False
+
+    test_app = FastAPI(lifespan=my_lifespan)
+    AgentML(test_app)
+
+    with TestClient(test_app) as client:
+        assert test_app.state.custom_started == True
+        response = client.get("/agents")
+        assert response.status_code == 200
+
 
 
