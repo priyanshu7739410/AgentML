@@ -45,6 +45,7 @@ class RouteInfo:
     path_params: List[str]
     handler_name: str
     query_params: List[FieldInfo] = dc_field(default_factory=list)
+    endpoint: Any = None
 
 def get_routes(app: FastAPI) -> List[RouteInfo]:
     """Inspects a FastAPI application and returns a structured list of route metadata.
@@ -181,6 +182,7 @@ def get_routes(app: FastAPI) -> List[RouteInfo]:
                 path_params=path_params,
                 handler_name=route.endpoint.__name__,
                 query_params=query_params,
+                endpoint=route.endpoint,
             )
         )
     return routes

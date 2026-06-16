@@ -96,7 +96,19 @@ def render_agent_workspace(
                 continue
             
             # Retrieve capability from registry or infer it
-            meta = registry.get(r.handler_name)
+            meta = None
+            if registry:
+                meta = registry.get(r.endpoint)
+                if not meta and hasattr(r, "endpoint") and r.endpoint:
+                    import inspect
+                    try:
+                        unwrapped = inspect.unwrap(r.endpoint)
+                        meta = registry.get(unwrapped)
+                    except Exception:
+                        pass
+                if not meta:
+                    meta = registry.get(r.handler_name)
+
             if meta:
                 cap_name = meta.action
                 description = meta.description
@@ -127,8 +139,13 @@ def render_agent_workspace(
                             alerts.append(a)
                         elif isinstance(a, dict):
                             alerts.append(Alert(**a))
-                except Exception:
-                    pass
+                except Exception as e:
+                    alerts.append(
+                        Alert(
+                            level="error",
+                            message=f"Alert evaluation failed for {cap_name}: {type(e).__name__}: {str(e)}"
+                        )
+                    )
 
             # Check if this capability is unavailable due to current resource state
             is_unavailable = False
@@ -140,8 +157,12 @@ def render_agent_workspace(
                             UnavailableCapability(name=cap_name, reason=reason)
                         )
                         is_unavailable = True
-                except Exception:
-                    pass
+                except Exception as e:
+                    reason = f"Safety check evaluation error: {type(e).__name__}: {str(e)}"
+                    unavailable.append(
+                        UnavailableCapability(name=cap_name, reason=reason)
+                    )
+                    is_unavailable = True
 
             if is_unavailable:
                 continue
@@ -284,7 +305,18 @@ def render_agent_workspace(
             first_exposed_desc = None
             action_count = 0
             for r in prefix_groups[p]:
-                meta = registry.get(r.handler_name)
+                meta = None
+                if registry:
+                    meta = registry.get(r.endpoint)
+                    if not meta and hasattr(r, "endpoint") and r.endpoint:
+                        import inspect
+                        try:
+                            unwrapped = inspect.unwrap(r.endpoint)
+                            meta = registry.get(unwrapped)
+                        except Exception:
+                            pass
+                    if not meta:
+                        meta = registry.get(r.handler_name)
                 if meta and meta.description and not first_exposed_desc:
                     first_exposed_desc = meta.description
                 for method in r.methods:

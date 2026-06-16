@@ -212,5 +212,128 @@ def test_renderer_deep_breadcrumbs():
         "Appointment 3"
     ]
 
+def test_renderer_name_collisions():
+    from agentML.inference import infer_capability_name
+    assert infer_capability_name("GET", "/patients/{id}/notes") == "ListPatientNotes"
+    assert infer_capability_name("GET", "/patients/{id}/visits/{visit_id}/notes") == "ListPatientVisitNotes"
+
+def test_renderer_expose_registry_function_keys():
+    from agentML.decorators import ActionMeta
+    
+    # Unrelated functions in different modules sharing a name
+    def list_items_patients():
+        pass
+    def list_items_billing():
+        pass
+        
+    list_items_patients.__name__ = "list_items"
+    list_items_billing.__name__ = "list_items"
+    list_items_patients.__module__ = "app.patients"
+    list_items_billing.__module__ = "app.billing"
+
+    # Register them as keys
+    registry = {
+        list_items_patients: ActionMeta(action="ListPatients", description="List patients"),
+        list_items_billing: ActionMeta(action="ListInvoices", description="List invoices"),
+    }
+    
+    from agentML.introspector import RouteInfo
+    
+    r_patients = RouteInfo(
+        path="/patients",
+        methods=["GET"],
+        body_model=None,
+        response_model=None,
+        path_params=[],
+        handler_name="list_items",
+        endpoint=list_items_patients
+    )
+    
+    r_billing = RouteInfo(
+        path="/billing",
+        methods=["GET"],
+        body_model=None,
+        response_model=None,
+        path_params=[],
+        handler_name="list_items",
+        endpoint=list_items_billing
+    )
+    
+    from agentML.renderer import render_agent_workspace
+    from agentML.auth import AuthContext
+    
+    auth = AuthContext()
+    
+    page_patients = render_agent_workspace(
+        resource_path="/patients/agents",
+        routes=[r_patients, r_billing],
+        registry=registry,
+        auth=auth,
+        state={}
+    )
+    
+    # Should only match ListPatients on the /patients workspace, not ListInvoices
+    patient_caps = [c.name for c in page_patients.capabilities]
+    assert "ListPatients" in patient_caps
+    assert "ListInvoices" not in patient_caps
+
+def test_renderer_safety_hooks_fail_closed():
+    from agentML.decorators import ActionMeta
+    
+    def buggy_unavailable(state, auth):
+        return state["missing_key"] == "yes" # Will raise KeyError
+        
+    def buggy_alerts(state, auth):
+        raise ValueError("Buggy alert logic")
+
+    def test_handler():
+        pass
+
+    registry = {
+        test_handler: ActionMeta(
+            action="DangerousAction",
+            unavailable_fn=buggy_unavailable,
+            alerts_fn=buggy_alerts
+        )
+    }
+    
+    from agentML.introspector import RouteInfo
+    r = RouteInfo(
+        path="/patients",
+        methods=["POST"],
+        body_model=None,
+        response_model=None,
+        path_params=[],
+        handler_name="test_handler",
+        endpoint=test_handler
+    )
+    
+    from agentML.renderer import render_agent_workspace
+    from agentML.auth import AuthContext
+    
+    auth = AuthContext()
+    
+    page = render_agent_workspace(
+        resource_path="/patients/agents",
+        routes=[r],
+        registry=registry,
+        auth=auth,
+        state={} # state doesn't have missing_key, raises KeyError
+    )
+    
+    # DangerousAction should be unavailable (fail closed)
+    cap_names = [c.name for c in page.capabilities]
+    assert "DangerousAction" not in cap_names
+    
+    unavailable_names = [u.name for u in page.unavailable]
+    assert "DangerousAction" in unavailable_names
+    assert "Safety check evaluation error" in page.unavailable[0].reason
+    
+    # There should be an error alert
+    assert len(page.alerts) == 1
+    assert page.alerts[0].level == "error"
+    assert "Alert evaluation failed" in page.alerts[0].message
+
+
 
 

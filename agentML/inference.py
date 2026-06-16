@@ -22,6 +22,14 @@ def _should_singularize(word: str) -> bool:
             return False
     return True
 
+def clean_and_capitalize(seg: str, singularize: bool) -> str:
+    # Convert snake_case/kebab-case/etc. to PascalCase
+    capitalized = "".join(part.capitalize() for part in seg.replace("-", "_").split("_"))
+    if singularize and capitalized.endswith("s") and not capitalized.endswith("ss"):
+        if _should_singularize(capitalized):
+            return capitalized[:-1]
+    return capitalized
+
 def infer_capability_name(method: str, path: str) -> str:
     """Derives a clean, business-focused capability name from an HTTP method and route path.
 
@@ -44,25 +52,14 @@ def infer_capability_name(method: str, path: str) -> str:
     # Identify if it's an instance path: does the last segment start with '{' and end with '}'
     is_instance = segments[-1].startswith("{") and segments[-1].endswith("}")
     
-    # Find the resource name.
-    if is_instance:
-        resource = segments[-2] if len(segments) >= 2 else "Resource"
-    else:
-        resource = segments[-1]
-    
-    # Clean resource name (convert snake_case/kebab-case/etc. to PascalCase)
-    resource = "".join(part.capitalize() for part in resource.replace("-", "_").split("_"))
-    
     # Check for custom actions in path, e.g. /billing/generate or /patients/{id}/cancel
     # If not an instance path, and last segment is a known action verb
     if not is_instance and len(segments) >= 2 and segments[-1] in ("generate", "verify", "cancel", "approve", "reject", "submit"):
         action = segments[-1].capitalize()
-        parent_resource = "".join(part.capitalize() for part in segments[-2].replace("-", "_").split("_"))
-        # Clean any ending 's' if not appropriate
-        if parent_resource.endswith("s") and not parent_resource.endswith("ss"):
-            if _should_singularize(parent_resource):
-                parent_resource = parent_resource[:-1]
-        return f"{action}{parent_resource}"
+        # Resources are all segments before the custom action that are not parameters
+        action_resources = [s for s in segments[:-1] if not (s.startswith("{") and s.endswith("}"))]
+        resource_str = "".join(clean_and_capitalize(s, singularize=True) for s in action_resources)
+        return f"{action}{resource_str}"
 
     # Determine the prefix based on method and is_instance
     verb = METHOD_VERB.get((method.upper(), is_instance), "")
@@ -75,12 +72,27 @@ def infer_capability_name(method: str, path: str) -> str:
             verb = "Delete"
         else:
             verb = "Get"
+
+    # Identify non-parameter segments
+    non_param_segs = [s for s in segments if not (s.startswith("{") and s.endswith("}"))]
     
-    # Singularize resource if it ends with "s" (but not "ss") for non-List verbs
-    if verb != "List" and resource.endswith("s") and not resource.endswith("ss"):
-        if _should_singularize(resource):
-            resource = resource[:-1]
+    # Filter out generic/versioning prefixes from naming
+    generic_prefixes = {"api", "v1", "v2", "v3", "v4", "v5"}
+    if non_param_segs and non_param_segs[0].lower() in generic_prefixes:
+        non_param_segs = non_param_segs[1:]
         
-    return f"{verb}{resource}"
+    if not non_param_segs:
+        return f"{verb}Resource"
+
+    # Build resource string from all non-parameter segments to prevent collisions on nested routes
+    parts = []
+    for i, seg in enumerate(non_param_segs):
+        is_last = (i == len(non_param_segs) - 1)
+        # Singularize if it's not the last segment, or if it is the last segment and verb is not "List"
+        should_sing = (not is_last) or (verb != "List")
+        parts.append(clean_and_capitalize(seg, singularize=should_sing))
+        
+    resource_str = "".join(parts)
+    return f"{verb}{resource_str}"
 
 

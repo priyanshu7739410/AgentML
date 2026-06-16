@@ -63,7 +63,7 @@ class AgentML:
             guidance (list, optional): Ordered list of instructions/steps for the agent workspace.
         """
         def decorator(fn: Callable):
-            self._registry[fn.__name__] = ActionMeta(
+            self._registry[fn] = ActionMeta(
                 action=action,
                 description=description,
                 roles=roles,
