@@ -25,7 +25,7 @@ agent.add_middleware() # Enables mutation response semantics
 ---
 
 ## 1. Mutation Enriched Response (POST /patients)
-When an agent performs an action (e.g. `POST /patients`) and sends the header `Accept: application/vnd.agentml+json`, AgentML intercepts the response to tell the agent exactly what changed (`delta`), where the resource now lives (`agent_resource`), and what actions are available next (`transitions`):
+When an agent performs an action (e.g. `POST /patients`) and sends the header `Accept: application/vnd.agentml+json`, AgentML intercepts the response to tell the agent exactly what changed (`delta`), where the resource now lives (`agent_resource`), and what it can do next (`actions`) and where it can go (`navigation`):
 
 ```http
 POST /patients
