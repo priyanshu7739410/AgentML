@@ -1,4 +1,4 @@
-# AgentML 🚀
+# AgentML 
 
 > **FastAPI generates APIs for humans and machines.**
 > **AgentML generates resource workspaces for autonomous AI agents.**
