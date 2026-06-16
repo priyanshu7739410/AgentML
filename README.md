@@ -51,29 +51,31 @@ Content-Type: application/json
     "age": 34
   },
   "agent_resource": "/patients/42/agents",
-  "transitions": [
+  "actions": [
     {
-      "action": "UpdatePatientDetails",
+      "name": "UpdatePatientDetails",
       "agent_endpoint": "/patients/42/agents"
     },
     {
-      "action": "ViewPatientDetails",
+      "name": "ViewPatientDetails",
       "agent_endpoint": "/patients/42/agents"
     },
     {
-      "action": "ArchivePatient",
+      "name": "ArchivePatient",
       "agent_endpoint": "/patients/42/agents"
-    },
+    }
+  ],
+  "navigation": [
     {
-      "action": "Appointments",
+      "label": "Appointments",
       "agent_endpoint": "/patients/42/appointments/agents"
     },
     {
-      "action": "Billing",
+      "label": "Billing",
       "agent_endpoint": "/billing/agents"
     },
     {
-      "action": "Home",
+      "label": "Home",
       "agent_endpoint": "/agents"
     }
   ]
@@ -176,7 +178,7 @@ A browser requests a resource and gets human-friendly HTML. An AI agent requests
 ## Core Features
 
 - **Relational Navigation**: Context-aware nested resources (e.g. `/patients/42/agents` links to `/patients/42/appointments/agents` substituting the identifier automatically).
-- **Mutation Semantics (v0.4)**: Mutation writes return execution feedback, updated state deltas, and transition options to eliminate agent state blindness.
+- **Mutation Semantics (v0.4)**: Mutation writes return execution feedback, updated state deltas, and structured action and navigation lists to eliminate agent state blindness.
 - **Invisible-by-Design RBAC**: Permissions are evaluated at render-time; capabilities the agent is unauthorized to perform are completely absent.
 - **Zero HTTP Verbs**: All actions are presented in clean business terminology (e.g. `RegisterPatient` instead of `POST /patients`).
 - **Fail-Closed Safety**: Dynamic safety check hooks (`unavailable_fn`) default to blocked state on exceptions.

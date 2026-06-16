@@ -175,26 +175,30 @@ class AgentMLMiddleware:
         except Exception as e:
             logger.warning(f"Error fetching workspace state at {agent_resource}: {e}")
 
-        # 5. Extract transitions
-        transitions = []
-        seen = set()
+        # 5. Extract actions and navigation
+        actions = []
+        navigation = []
+        
+        seen_actions = set()
+        seen_nav = set()
+        
         if workspace_data:
-            # Add capabilities
+            # Add capabilities to actions
             for cap in workspace_data.get("capabilities", []):
                 key = cap["name"]
-                if key not in seen:
-                    seen.add(key)
-                    transitions.append({
-                        "action": cap["name"],
+                if key not in seen_actions:
+                    seen_actions.add(key)
+                    actions.append({
+                        "name": cap["name"],
                         "agent_endpoint": agent_resource
                     })
             # Add navigation links
             for nav in workspace_data.get("navigation", []):
                 key = (nav["label"], nav["agent_endpoint"])
-                if key not in seen:
-                    seen.add(key)
-                    transitions.append({
-                        "action": nav["label"],
+                if key not in seen_nav:
+                    seen_nav.add(key)
+                    navigation.append({
+                        "label": nav["label"],
                         "agent_endpoint": nav["agent_endpoint"]
                     })
 
@@ -203,7 +207,8 @@ class AgentMLMiddleware:
             "result": response_json if response_json else response_bytes.decode("utf-8"),
             "delta": delta,
             "agent_resource": agent_resource,
-            "transitions": transitions
+            "actions": actions,
+            "navigation": navigation
         }
 
         enriched_bytes = json.dumps(enriched_body).encode("utf-8")
