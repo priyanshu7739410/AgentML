@@ -6,6 +6,7 @@ from agentML import AgentML
 
 app = FastAPI()
 agent = AgentML(app)
+agent.add_middleware()
 
 class PatientCreate(BaseModel):
     name: str = Field(..., description="Full name of the patient")
@@ -241,7 +242,7 @@ async def list_patients(request: Request, q: Optional[str] = None):
     return []
 
 @app.post("/patients", response_model=PatientResponse)
-@agent.expose(action="RegisterPatient", description="Register a new patient with personal and demographic data")
+@agent.expose(action="RegisterPatient", description="Register a new patient with personal and demographic data", returns="/patients/{id}")
 async def create_patient(data: PatientCreate):
     """Create a new patient."""
     return {"id": 1, "name": data.name, "age": data.age}
@@ -273,7 +274,7 @@ async def get_patient(id: int, request: Request):
     return {"id": id, "name": "John Doe" if id != 1 else "Aanya Sharma", "age": 30 if id != 1 else 34}
 
 @app.put("/patients/{id}", response_model=PatientResponse)
-@agent.expose(action="UpdatePatientDetails", description="Modify name or age of an existing patient")
+@agent.expose(action="UpdatePatientDetails", description="Modify name or age of an existing patient", returns="/patients/{id}")
 async def update_patient(id: int, data: PatientCreate):
     """Update patient details."""
     return {"id": id, "name": data.name, "age": data.age}

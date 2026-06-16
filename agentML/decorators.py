@@ -20,5 +20,6 @@ class ActionMeta:
     unavailable_fn: Optional[Callable[[Dict[str, Any], Any], Optional[str]]] = None
     alerts_fn: Optional[Callable[[Dict[str, Any], Any], List[Any]]] = None
     guidance: Optional[List[str]] = None
+    returns: Optional[str] = None
 
 

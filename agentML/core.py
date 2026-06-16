@@ -49,6 +49,7 @@ class AgentML:
         unavailable_fn: Optional[Callable] = None,
         alerts_fn: Optional[Callable] = None,
         guidance: Optional[list] = None,
+        returns: Optional[str] = None,
     ):
         """Decorate a route handler function to register custom AgentWorkspace metadata.
         
@@ -61,6 +62,7 @@ class AgentML:
             alerts_fn (Callable, optional): Hook that receives (state, auth) and returns
                 a list of Alert schemas.
             guidance (list, optional): Ordered list of instructions/steps for the agent workspace.
+            returns (str, optional): Explicit target agent_resource path template for mutations.
         """
         def decorator(fn: Callable):
             self._registry[fn] = ActionMeta(
@@ -70,9 +72,16 @@ class AgentML:
                 unavailable_fn=unavailable_fn,
                 alerts_fn=alerts_fn,
                 guidance=guidance,
+                returns=returns,
             )
             return fn
         return decorator
+
+    def add_middleware(self):
+        """Register the AgentMLMiddleware on the FastAPI application to enable enriched write semantics."""
+        from agentML.middleware import AgentMLMiddleware
+        self.app.add_middleware(AgentMLMiddleware, agentml=self)
+
 
     def _register_agent_routes(self):
         if self._routes_registered:
