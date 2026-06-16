@@ -165,3 +165,31 @@ def test_renderer_rbac():
     assert "RegisterPatient" not in cap_names_nurse
     assert "ListPatients" in cap_names_nurse
 
+def test_renderer_guidance_and_feedback():
+    from agentML.decorators import ActionMeta
+
+    routes = get_routes(app)
+    
+    registry = {
+        "create_patient": ActionMeta(
+            action="RegisterPatient",
+            guidance=["Step 1: Check in", "Step 2: Collect vitals"]
+        )
+    }
+
+    auth = AuthContext(role="doctor")
+    
+    # Check guidance and feedback are correctly rendered
+    page = render_agent_workspace(
+        resource_path="/patients/agents",
+        routes=routes,
+        registry=registry,
+        auth=auth,
+        state={},
+        feedback={"status": "success", "id": 100}
+    )
+    
+    assert page.guidance == ["Step 1: Check in", "Step 2: Collect vitals"]
+    assert page.feedback == {"status": "success", "id": 100}
+
+

@@ -21,6 +21,7 @@ def render_agent_workspace(
     registry: Dict[str, Any],
     auth: AuthContext,
     state: Dict[str, Any],
+    feedback: Optional[Dict[str, Any]] = None,
 ) -> AgentWorkspace:
     """Renders the current API resource path into an AgentWorkspace structure.
 
@@ -34,6 +35,7 @@ def render_agent_workspace(
         registry (Dict[str, Any]): Registered metadata for explicitly exposed endpoints.
         auth (AuthContext): The current user role and session details.
         state (Dict[str, Any]): The dynamic state returned by the main resource endpoint.
+        feedback (Dict[str, Any], optional): The payload of mutation execution feedback.
 
     Returns:
         AgentWorkspace: The fully populated AgentML workspace.
@@ -145,6 +147,21 @@ def render_agent_workspace(
                         )
                     )
             
+            # Extract query parameters (Tier 2/3 optional fields)
+            if hasattr(r, "query_params") and r.query_params:
+                for q_info in r.query_params:
+                    current_val = state.get(q_info.name)
+                    fields.append(
+                        FieldDefinition(
+                            name=q_info.name,
+                            type=q_info.type,
+                            required=False,
+                            description=q_info.description,
+                            current=current_val,
+                            constraints=q_info.constraints,
+                        )
+                    )
+
             capabilities.append(
                 Capability(
                     name=cap_name,
@@ -202,6 +219,16 @@ def render_agent_workspace(
     if isinstance(state, dict) and "items" in state and isinstance(state["items"], list):
         meta_block = MetaBlock(total=len(state["items"]))
 
+    # Gather guidance steps from capabilities/registry
+    guidance = []
+    for c in capabilities:
+        for meta in registry.values():
+            if hasattr(meta, "action") and meta.action == c.name:
+                if hasattr(meta, "guidance") and meta.guidance:
+                    for step in meta.guidance:
+                        if step not in guidance:
+                            guidance.append(step)
+
     return AgentWorkspace(
         agentML="0.1",
         workspace=WorkspaceBlock(
@@ -218,8 +245,8 @@ def render_agent_workspace(
         navigation=navigation,
         alerts=alerts,
         unavailable=unavailable,
-        guidance=[],
-        feedback={},
+        guidance=guidance,
+        feedback=feedback or {},
         meta=meta_block,
     )
 

@@ -67,3 +67,24 @@ def test_query_parameters_forwarding():
         data = response.json()
         assert data["state"] == {"items": [{"id": 1, "name": "Bob", "age": 20}]}
 
+def test_last_action_feedback_header():
+    with TestClient(app) as client:
+        # Pass a JSON string in X-AgentML-Last-Action header
+        response = client.get(
+            "/patients/agents",
+            headers={"X-AgentML-Last-Action": '{"mutated": true, "id": 1}'}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["feedback"] == {"mutated": True, "id": 1}
+
+        # Pass non-JSON text in X-AgentML-Last-Action header
+        response2 = client.get(
+            "/patients/agents",
+            headers={"X-AgentML-Last-Action": "raw_feedback_string"}
+        )
+        assert response2.status_code == 200
+        data2 = response2.json()
+        assert data2["feedback"] == {"result": "raw_feedback_string"}
+
+

@@ -7,25 +7,6 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel
 
 @dataclass
-class RouteInfo:
-    """Metadata representing a parsed FastAPI route for AgentML introspection.
-
-    Attributes:
-        path (str): The routing path (e.g. '/patients/{id}').
-        methods (List[str]): List of HTTP methods supported by the route.
-        body_model (Type[BaseModel], optional): The Pydantic model representing request body inputs.
-        response_model (Type[BaseModel], optional): The Pydantic model representing route outputs/responses.
-        path_params (List[str]): Names of path parameters embedded in the route.
-        handler_name (str): Name of the endpoint function handler.
-    """
-    path: str
-    methods: List[str]
-    body_model: Optional[Type[BaseModel]]
-    response_model: Optional[Type[BaseModel]]
-    path_params: List[str]
-    handler_name: str
-
-@dataclass
 class FieldInfo:
     """Metadata details extracted from Pydantic fields.
 
@@ -43,6 +24,27 @@ class FieldInfo:
     default: Any
     constraints: dict = dc_field(default_factory=dict)
     description: str = ""
+
+@dataclass
+class RouteInfo:
+    """Metadata representing a parsed FastAPI route for AgentML introspection.
+
+    Attributes:
+        path (str): The routing path (e.g. '/patients/{id}').
+        methods (List[str]): List of HTTP methods supported by the route.
+        body_model (Type[BaseModel], optional): The Pydantic model representing request body inputs.
+        response_model (Type[BaseModel], optional): The Pydantic model representing route outputs/responses.
+        path_params (List[str]): Names of path parameters embedded in the route.
+        handler_name (str): Name of the endpoint function handler.
+        query_params (List[FieldInfo]): List of query parameters accepted by the route.
+    """
+    path: str
+    methods: List[str]
+    body_model: Optional[Type[BaseModel]]
+    response_model: Optional[Type[BaseModel]]
+    path_params: List[str]
+    handler_name: str
+    query_params: List[FieldInfo] = dc_field(default_factory=list)
 
 def get_routes(app: FastAPI) -> List[RouteInfo]:
     """Inspects a FastAPI application and returns a structured list of route metadata.
@@ -81,9 +83,21 @@ def get_routes(app: FastAPI) -> List[RouteInfo]:
             try:
                 sig = inspect.signature(route.endpoint)
                 for param in sig.parameters.values():
+                    # Skip Depends()
+                    from fastapi.params import Depends
+                    if isinstance(param.default, Depends) or type(param.default).__name__ == "Depends":
+                        continue
+
+                    # Skip FastAPI Request, Response, BackgroundTasks
+                    from fastapi import Request, Response, BackgroundTasks
                     annotation = param.annotation
+                    if annotation in (Request, Response, BackgroundTasks):
+                        continue
+
                     if hasattr(annotation, "__origin__") and annotation.__origin__ is Union:
                         for arg in annotation.__args__:
+                            if arg in (Request, Response, BackgroundTasks):
+                                continue
                             if isinstance(arg, type) and issubclass(arg, BaseModel):
                                 body_model = arg
                                 break
@@ -108,6 +122,56 @@ def get_routes(app: FastAPI) -> List[RouteInfo]:
 
         path_params = re.findall(r"\{([^}]+)\}", route.path)
 
+        # Extract query parameters
+        query_params = []
+        if hasattr(route, "dependant") and route.dependant and route.dependant.query_params:
+            for q_param in route.dependant.query_params:
+                name = q_param.name
+                type_str = "string"
+                if hasattr(q_param, "field_info") and q_param.field_info and q_param.field_info.annotation:
+                    annot = q_param.field_info.annotation
+                    if hasattr(annot, "__origin__") and annot.__origin__ is Union:
+                        args = [a for a in annot.__args__ if a is not type(None)]
+                        annot = args[0] if args else str
+                    if annot is int:
+                        type_str = "integer"
+                    elif annot is float:
+                        type_str = "number"
+                    elif annot is bool:
+                        type_str = "boolean"
+                elif hasattr(q_param, "type_") and q_param.type_:
+                    t_val = q_param.type_
+                    if t_val is int:
+                        type_str = "integer"
+                    elif t_val is float:
+                        type_str = "number"
+                    elif t_val is bool:
+                        type_str = "boolean"
+
+                required = False
+                default_val = None
+                description = ""
+
+                if hasattr(q_param, "field_info") and q_param.field_info:
+                    f_info = q_param.field_info
+                    from pydantic_core import PydanticUndefined
+                    if f_info.default is not PydanticUndefined and f_info.default is not ...:
+                        default_val = f_info.default
+                    else:
+                        required = True
+                    description = f_info.description or ""
+
+                query_params.append(
+                    FieldInfo(
+                        name=name,
+                        type=type_str,
+                        required=required,
+                        default=default_val,
+                        constraints={},
+                        description=description,
+                    )
+                )
+
         routes.append(
             RouteInfo(
                 path=route.path,
@@ -116,6 +180,7 @@ def get_routes(app: FastAPI) -> List[RouteInfo]:
                 response_model=response_model if (isinstance(response_model, type) and issubclass(response_model, BaseModel)) else None,
                 path_params=path_params,
                 handler_name=route.endpoint.__name__,
+                query_params=query_params,
             )
         )
     return routes

@@ -48,6 +48,7 @@ class AgentML:
         roles: Optional[list] = None,
         unavailable_fn: Optional[Callable] = None,
         alerts_fn: Optional[Callable] = None,
+        guidance: Optional[list] = None,
     ):
         """Decorate a route handler function to register custom AgentWorkspace metadata.
         
@@ -59,6 +60,7 @@ class AgentML:
                 a string explanation if the action is currently blocked by state.
             alerts_fn (Callable, optional): Hook that receives (state, auth) and returns
                 a list of Alert schemas.
+            guidance (list, optional): Ordered list of instructions/steps for the agent workspace.
         """
         def decorator(fn: Callable):
             self._registry[fn.__name__] = ActionMeta(
@@ -67,6 +69,7 @@ class AgentML:
                 roles=roles,
                 unavailable_fn=unavailable_fn,
                 alerts_fn=alerts_fn,
+                guidance=guidance,
             )
             return fn
         return decorator
@@ -159,12 +162,24 @@ class AgentML:
                 logger.warning(f"Error fetching state for {human_path}: {e}")
                 
             routes = get_routes(self.app)
+
+            # Read and parse mutation feedback header if present
+            feedback = {}
+            last_action_header = request.headers.get("X-AgentML-Last-Action")
+            if last_action_header:
+                import json
+                try:
+                    feedback = json.loads(last_action_header)
+                except Exception:
+                    feedback = {"result": last_action_header}
+
             workspace_data = render_agent_workspace(
                 resource_path=request.url.path,
                 routes=routes,
                 registry=self._registry,
                 auth=auth,
-                state=state
+                state=state,
+                feedback=feedback
             )
             return workspace_data
         return agent_handler

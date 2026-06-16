@@ -42,3 +42,51 @@ def test_infer_capability_name_exceptions():
     assert infer_capability_name("GET", "/api/patients") == "ListPatients"
     assert infer_capability_name("GET", "/api/patients/{id}") == "GetPatient"
 
+def test_introspector_query_params_and_skips():
+    from fastapi import Depends, Request, Response, BackgroundTasks
+    app_test = FastAPI()
+
+    class BodyModel(BaseModel):
+        val: str
+
+    def dep_fn():
+        return "dep"
+
+    @app_test.get("/test-endpoint")
+    def my_handler(
+        req: Request,
+        res: Response,
+        bg: BackgroundTasks,
+        body: BodyModel,
+        q: str = None,
+        limit: int = 10,
+        dep: str = Depends(dep_fn)
+    ):
+        return {"ok": True}
+
+    routes = get_routes(app_test)
+    assert len(routes) == 1
+    r_info = routes[0]
+    
+    # Body model should be resolved to BodyModel despite Request, Response, BackgroundTasks, and Depends
+    assert r_info.body_model == BodyModel
+    
+    # Query parameters should be extracted
+    q_params = {q.name: q for q in r_info.query_params}
+    assert "q" in q_params
+    assert q_params["q"].type == "string"
+    assert q_params["q"].required is False
+
+    assert "limit" in q_params
+    assert q_params["limit"].type == "integer"
+    assert q_params["limit"].required is False
+    assert q_params["limit"].default == 10
+
+    # Request/Response/Depends/Body parameters should NOT be in query params
+    assert "req" not in q_params
+    assert "res" not in q_params
+    assert "bg" not in q_params
+    assert "dep" not in q_params
+    assert "body" not in q_params
+
+
