@@ -3,15 +3,30 @@ requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentML"
+name = "agentml"
 version = "0.1.0"
-description = """AgentML is a rendering convention — any HTTP resource adds /agents 
-                and gets a fully rendered agent-page: complete world-state, context, 
-                permissions, current state, available actions, guidance, 
-                navigation — everything a webpage gives a human, but native to 
-                how agents think. Universal. No protocol. Just HTTP."""
+description = "A rendering convention for AI agents — append /agents to any FastAPI route and get a fully structured agent workspace with state, capabilities, RBAC, and navigation."
 readme = "README.md"
 requires-python = ">=3.9"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Priyanshu"}
+]
+keywords = ["fastapi", "agents", "llm", "mcp", "ai", "agentic", "rest", "openai"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Framework :: FastAPI",
+  "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "fastapi>=0.100.0",
     "pydantic>=2.0.0",
@@ -21,7 +36,18 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "build",
+    "twine",
 ]
+
+[project.urls]
+Homepage = "https://github.com/priyanshu7739410/AgentML"
+Repository = "https://github.com/priyanshu7739410/AgentML"
+"Bug Tracker" = "https://github.com/priyanshu7739410/AgentML/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agentML*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,5 +1,7 @@
 # AgentML
 
+[![PyPI version](https://badge.fury.io/py/agentml.svg)](https://badge.fury.io/py/agentml)
+
 > **AgentML is a universal rendering convention for AI agents.**
 > The same way browsers render HTML into a visual experience for humans, AgentML renders a complete agent-page/workspace for AI — context, state, permissions, actions, guidance, navigation — everything an agent needs to understand where it is and what it can do, in one response.
 
