@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -197,7 +198,7 @@ async def root(request: Request):
 
 @app.get("/patients")
 @agent.expose(action="ListPatients", description="Retrieve all patients registered in the clinic system")
-async def list_patients(request: Request, q: str | None = None):
+async def list_patients(request: Request, q: Optional[str] = None):
     # For testing, we return an empty list if not HTML. But for human UI, let's show some demo patients.
     if "text/html" in request.headers.get("accept", ""):
         content = """
