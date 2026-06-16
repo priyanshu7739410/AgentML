@@ -28,10 +28,18 @@ class AgentML:
         self._registry: Dict[str, ActionMeta] = {}    # handler_name → ActionMeta
         self._routes_registered = False
         
-        # Register startup event handler
-        @app.on_event("startup")
-        def _on_startup():
+        from contextlib import asynccontextmanager
+
+        # Inject startup registration into the lifespan lifecycle without breaking existing lifespans
+        original_lifespan = app.router.lifespan_context
+
+        @asynccontextmanager
+        async def agentml_lifespan(app_instance):
             self._register_agent_routes()
+            async with original_lifespan(app_instance) as maybe_state:
+                yield maybe_state
+
+        app.router.lifespan_context = agentml_lifespan
 
     def expose(
         self,

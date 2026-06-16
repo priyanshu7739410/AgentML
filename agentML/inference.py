@@ -9,6 +9,19 @@ METHOD_VERB = {
     ("PATCH", True): "Update",
 }
 
+SINGULARIZATION_EXCEPTIONS = {
+    "address", "status", "process", "class", "access",
+    "progress", "discuss", "canvas", "alias", "bonus"
+}
+
+def _should_singularize(word: str) -> bool:
+    """Helper to check if a word/resource ends with a known exception that shouldn't be singularized."""
+    word_lower = word.lower()
+    for exc in SINGULARIZATION_EXCEPTIONS:
+        if word_lower == exc or word_lower.endswith(exc):
+            return False
+    return True
+
 def infer_capability_name(method: str, path: str) -> str:
     """Derives a clean, business-focused capability name from an HTTP method and route path.
 
@@ -47,7 +60,8 @@ def infer_capability_name(method: str, path: str) -> str:
         parent_resource = "".join(part.capitalize() for part in segments[-2].replace("-", "_").split("_"))
         # Clean any ending 's' if not appropriate
         if parent_resource.endswith("s") and not parent_resource.endswith("ss"):
-            parent_resource = parent_resource[:-1]
+            if _should_singularize(parent_resource):
+                parent_resource = parent_resource[:-1]
         return f"{action}{parent_resource}"
 
     # Determine the prefix based on method and is_instance
@@ -64,7 +78,9 @@ def infer_capability_name(method: str, path: str) -> str:
     
     # Singularize resource if it ends with "s" (but not "ss") for non-List verbs
     if verb != "List" and resource.endswith("s") and not resource.endswith("ss"):
-        resource = resource[:-1]
+        if _should_singularize(resource):
+            resource = resource[:-1]
         
     return f"{verb}{resource}"
+
 
