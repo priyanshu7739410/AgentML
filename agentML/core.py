@@ -140,7 +140,7 @@ class AgentML:
             try:
                 transport = httpx.ASGITransport(app=self.app)
                 async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get(human_path, headers=headers)
+                    resp = await client.get(human_path, headers=headers, params=request.query_params)
                     if resp.status_code == 200:
                         state_data = resp.json()
                         if isinstance(state_data, dict):

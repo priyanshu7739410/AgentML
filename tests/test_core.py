@@ -59,3 +59,11 @@ def test_instance_agents_endpoint():
         assert data["workspace"]["resource"] == "/patients/42"
         assert data["workspace"]["agent_resource"] == "/patients/42/agents"
         assert data["state"] == {"id": 42, "name": "John Doe", "age": 30}
+
+def test_query_parameters_forwarding():
+    with TestClient(app) as client:
+        response = client.get("/patients/agents?q=Bob")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["state"] == {"items": [{"id": 1, "name": "Bob", "age": 20}]}
+
