@@ -38,6 +38,23 @@ A browser requests a resource and gets HTML. An AI agent requests the same resou
 
 ---
 
+## Progressive Enhancement: The Four Tiers of AgentML
+AgentML treats the AI agent experience like a webpage. Just as modern browsers render pages using progressive enhancement depending on stylesheet or JS availability, AgentML scales its workspaces based on the metadata available:
+
+| Tier | Name | Generation Source | What the Agent Gets | Quality / Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **Tier 0** | **HTTP Inferred** | Raw HTTP traffic logs (e.g. at the reverse proxy/Cloudflare level) | Raw methods (`GET`, `POST`, `PUT`), URL paths, basic content types. | **Basic/Weak**: Good for legacy apps where you cannot access code or schemas. |
+| **Tier 1** | **Schema Synthesized** | OpenAPI (Swagger) specs, database schemas, JSON Schemas | Route descriptions, parameter constraints, expected field names, basic descriptions. | **Decent**: Instantly turns any documented backend API into a basic Agent Workspace. |
+| **Tier 2** | **Metadata Hybrid** | OpenAPI + Schema.org (Microdata) + HTML structure | Basic fields/actions + page semantic metadata (e.g. product names, prices) + basic state. | **Good**: Worker combines read-only SEO microdata with OpenAPI routes to link state and actions. |
+| **Tier 3** | **Application Native** | Developer annotations (e.g. `@agent.expose()`) | Rich state, dynamic navigation (`/agents`), constraint hooks (`unavailable_fn`), custom RBAC. | **Excellent (Native)**: Full business workspace with deep application awareness and safety. |
+
+### Architectural Takeaways:
+1. **Zero-Friction Adoption**: A developer can start at **Tier 1** by simply pointing an edge proxy (e.g., a Cloudflare Worker) to their existing `openapi.json` file to auto-generate `/agents` workspaces immediately.
+2. **Selective Upgrades**: As agent traffic scales, critical routes (like checkouts or billing) can be progressively enhanced to **Tier 3** (Application Native) using direct code annotations.
+3. **The Role of CDNs/Edge Proxies**: The edge proxy can serve as the **aggregator and cache layer**—fetching OpenAPI schemas and current JSON data, merging them into the AgentML structure on the fly.
+
+---
+
 ## Why not REST APIs?
 - **REST APIs expose operations**: They tell you what endpoints exist globally (e.g. `POST /appointments`), but not who you are, what you can do right now, or what is currently set.
 - **AgentML exposes context**: It bundles **Identity**, **Current State**, **Permissions**, **Available Actions**, and **Related Resources** together into a single, unified workspace. The agent doesn't reconstruct context; it receives it.
